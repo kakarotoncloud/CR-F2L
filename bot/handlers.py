@@ -37,6 +37,13 @@ def pretty_bytes(size: int) -> str:
     return f"{size} B"
 
 
+def _resolve_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return (Path.cwd() / path).resolve()
+
+
 class RateLimiter:
     """Simple in-memory sliding window rate limiter by user ID."""
 
@@ -303,7 +310,7 @@ def register_handlers(app: Client, settings: Settings, db: Database) -> None:
             file_name = existing["file_name"]
             mime_type = existing.get("mime_type")
             file_size = int(existing["file_size"])
-            local_path = Path(existing["local_path"])
+            local_path = _resolve_path(existing["local_path"])
             if not local_path.exists():
                 status = await message.reply_text("Downloading file from Telegram...")
                 local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -311,11 +318,17 @@ def register_handlers(app: Client, settings: Settings, db: Database) -> None:
                 if not downloaded_path:
                     await status.edit_text("Failed to download file from Telegram.")
                     return
+                actual_path = _resolve_path(downloaded_path)
+                if not actual_path.exists():
+                    await status.edit_text("Download finished but file not found on disk.")
+                    return
+                local_path = actual_path
+                await db.update_file_path(file_id=file_id, local_path=str(actual_path))
                 await status.delete()
         else:
             file_name = sanitize_filename(meta["file_name"])
             local_path = build_storage_path(
-                settings.storage_path,
+                settings.storage_path.resolve(),
                 telegram_unique_id=meta["telegram_unique_id"],
                 file_name=file_name,
             )
@@ -324,6 +337,10 @@ def register_handlers(app: Client, settings: Settings, db: Database) -> None:
             downloaded_path = await client.download_media(message=message, file_name=str(local_path))
             if not downloaded_path:
                 await status.edit_text("Failed to download file from Telegram.")
+                return
+            actual_path = _resolve_path(downloaded_path)
+            if not actual_path.exists():
+                await status.edit_text("Download finished but file not found on disk.")
                 return
 
             file_size = int(meta["file_size"])
@@ -335,7 +352,7 @@ def register_handlers(app: Client, settings: Settings, db: Database) -> None:
                 file_name=file_name,
                 mime_type=mime_type,
                 file_size=file_size,
-                local_path=str(local_path),
+                local_path=str(actual_path),
             )
             await status.delete()
 

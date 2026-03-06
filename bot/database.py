@@ -169,6 +169,13 @@ class Database:
         await self.conn.commit()
         return int(cursor.lastrowid)
 
+    async def update_file_path(self, file_id: int, local_path: str) -> None:
+        await self.conn.execute(
+            "UPDATE files SET local_path = ? WHERE file_id = ?",
+            (local_path, file_id),
+        )
+        await self.conn.commit()
+
     async def add_link(self, token: str, file_id: int, link_type: str, expires_at: int) -> None:
         await self.conn.execute(
             """
