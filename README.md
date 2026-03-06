@@ -122,7 +122,9 @@ Use it for temporary checks, not 24/7 hosting.
 1. Go to **Actions** tab in your repository.
 2. Open workflow: **Safe Bot Test Run**.
 3. Click **Run workflow**.
-4. Enter `duration_minutes` (for example `60` or `120`).
+4. Enter:
+   - `duration_minutes` (for example `60` or `120`)
+   - `max_file_size_mb` (for example `2048`)
 5. Click **Run workflow** button.
 6. Open run logs and verify `health` checks are passing.
 

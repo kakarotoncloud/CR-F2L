@@ -7,6 +7,10 @@ on:
         description: "Run duration in minutes (15-180)"
         required: true
         default: "60"
+      max_file_size_mb:
+        description: "Max accepted file size in MB (128-2048)"
+        required: true
+        default: "2048"
 
 permissions:
   contents: read
@@ -41,6 +45,7 @@ jobs:
           API_HASH: ${{ secrets.API_HASH }}
           PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
           INPUT_DURATION: ${{ github.event.inputs.duration_minutes }}
+          INPUT_MAX_FILE_SIZE: ${{ github.event.inputs.max_file_size_mb }}
         run: |
           if [ -z "$BOT_TOKEN" ] || [ -z "$API_ID" ] || [ -z "$API_HASH" ]; then
             echo "Missing required secrets. Add BOT_TOKEN, API_ID, API_HASH in repository secrets."
@@ -58,11 +63,23 @@ jobs:
           if [ "$DURATION" -lt 15 ]; then DURATION=15; fi
           if [ "$DURATION" -gt 180 ]; then DURATION=180; fi
 
+          case "$INPUT_MAX_FILE_SIZE" in
+            ''|*[!0-9]*)
+              echo "max_file_size_mb must be a number."
+              exit 1
+              ;;
+          esac
+
+          MAX_FILE_SIZE=$INPUT_MAX_FILE_SIZE
+          if [ "$MAX_FILE_SIZE" -lt 128 ]; then MAX_FILE_SIZE=128; fi
+          if [ "$MAX_FILE_SIZE" -gt 2048 ]; then MAX_FILE_SIZE=2048; fi
+
           if [ -z "$PUBLIC_BASE_URL" ]; then
             PUBLIC_BASE_URL="http://127.0.0.1:8080"
           fi
 
           echo "SAFE_DURATION_MINUTES=$DURATION" >> "$GITHUB_ENV"
+          echo "SAFE_MAX_FILE_SIZE_MB=$MAX_FILE_SIZE" >> "$GITHUB_ENV"
           echo "SAFE_PUBLIC_BASE_URL=$PUBLIC_BASE_URL" >> "$GITHUB_ENV"
 
       - name: Write runtime env
@@ -73,6 +90,7 @@ jobs:
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
           LINK_SIGNING_SECRET: ${{ secrets.LINK_SIGNING_SECRET }}
           SAFE_PUBLIC_BASE_URL: ${{ env.SAFE_PUBLIC_BASE_URL }}
+          SAFE_MAX_FILE_SIZE_MB: ${{ env.SAFE_MAX_FILE_SIZE_MB }}
         run: |
           {
             echo "BOT_TOKEN=$BOT_TOKEN"
@@ -86,7 +104,7 @@ jobs:
             echo "LINK_EXPIRY_SECONDS=3600"
             echo "RATE_LIMIT_REQUESTS=8"
             echo "RATE_LIMIT_WINDOW_SECONDS=60"
-            echo "MAX_FILE_SIZE_MB=512"
+            echo "MAX_FILE_SIZE_MB=$SAFE_MAX_FILE_SIZE_MB"
             echo "LOG_LEVEL=INFO"
             echo "FFMPEG_ENABLED=false"
             echo "DATABASE_PATH=data/bot.db"
