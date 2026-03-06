@@ -104,6 +104,7 @@ Use it for temporary checks, not 24/7 hosting.
 - Job auto-timeout
 - Auto-stop at the end
 - Test logs are uploaded as an artifact
+- If `PUBLIC_BASE_URL` secret is missing, workflow creates a temporary public Cloudflare tunnel URL
 
 ### One-time setup (simple steps)
 
@@ -127,6 +128,9 @@ Use it for temporary checks, not 24/7 hosting.
    - `max_file_size_mb` (for example `2048`)
 5. Click **Run workflow** button.
 6. Open run logs and verify `health` checks are passing.
+7. If you did not set `PUBLIC_BASE_URL`, copy the printed line:
+   - `Temporary public URL: https://...trycloudflare.com`
+   Links sent by bot will use this URL while workflow is running.
 
 ### Important note
 

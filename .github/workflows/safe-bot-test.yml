@@ -74,13 +74,45 @@ jobs:
           if [ "$MAX_FILE_SIZE" -lt 128 ]; then MAX_FILE_SIZE=128; fi
           if [ "$MAX_FILE_SIZE" -gt 2048 ]; then MAX_FILE_SIZE=2048; fi
 
-          if [ -z "$PUBLIC_BASE_URL" ]; then
-            PUBLIC_BASE_URL="http://127.0.0.1:8080"
-          fi
-
           echo "SAFE_DURATION_MINUTES=$DURATION" >> "$GITHUB_ENV"
           echo "SAFE_MAX_FILE_SIZE_MB=$MAX_FILE_SIZE" >> "$GITHUB_ENV"
           echo "SAFE_PUBLIC_BASE_URL=$PUBLIC_BASE_URL" >> "$GITHUB_ENV"
+
+      - name: Setup public URL (secret or temporary tunnel)
+        env:
+          SAFE_PUBLIC_BASE_URL: ${{ env.SAFE_PUBLIC_BASE_URL }}
+        run: |
+          if [ -n "$SAFE_PUBLIC_BASE_URL" ]; then
+            echo "Using PUBLIC_BASE_URL from secret: $SAFE_PUBLIC_BASE_URL"
+            exit 0
+          fi
+
+          echo "PUBLIC_BASE_URL not provided. Starting temporary Cloudflare tunnel..."
+          curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/cloudflared
+
+          nohup cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > tunnel.log 2>&1 &
+          echo "TUNNEL_PID=$!" >> "$GITHUB_ENV"
+
+          URL=""
+          for i in $(seq 1 30); do
+            URL=$(sed -n 's/.*\(https:\/\/[-a-z0-9]*\.trycloudflare\.com\).*/\1/p' tunnel.log | head -n 1)
+            if [ -n "$URL" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          if [ -z "$URL" ]; then
+            echo "Could not create temporary tunnel URL."
+            echo "Tunnel log:"
+            cat tunnel.log
+            exit 1
+          fi
+
+          echo "Temporary public URL: $URL"
+          echo "SAFE_PUBLIC_BASE_URL=$URL" >> "$GITHUB_ENV"
 
       - name: Write runtime env
         env:
@@ -140,6 +172,10 @@ jobs:
             kill "$BOT_PID" || true
             sleep 2
           fi
+          if [ -n "$TUNNEL_PID" ] && kill -0 "$TUNNEL_PID" 2>/dev/null; then
+            kill "$TUNNEL_PID" || true
+            sleep 2
+          fi
 
       - name: Upload bot logs
         if: always()
@@ -148,3 +184,11 @@ jobs:
           name: safe-bot-test-logs
           path: bot.log
           if-no-files-found: warn
+
+      - name: Upload tunnel logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe-bot-test-tunnel-logs
+          path: tunnel.log
+          if-no-files-found: ignore
