@@ -11,7 +11,7 @@ Production-ready Telegram bot that converts uploaded files into secure, expiring
 [![Pyrogram](https://img.shields.io/badge/Telegram-Pyrogram-2CA5E0?logo=telegram&logoColor=white)](https://docs.pyrogram.org/)
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Deploy](https://img.shields.io/badge/Deploy-Heroku%20%7C%20VPS%20%7C%20Colab-6f42c1)](#deployment-guides)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/main/colab_setup.ipynb)
 
 ---
 
@@ -110,7 +110,7 @@ How to get them quickly:
 
 Click:
 
-- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb
+- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/main/colab_setup.ipynb
 
 Then:
 
@@ -284,7 +284,7 @@ Use `colab_setup.ipynb`:
 
 Direct link:
 
-- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb
+- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/main/colab_setup.ipynb
 
 ---
 
