@@ -131,6 +131,7 @@ Use it for temporary checks, not 24/7 hosting.
 7. If you did not set `PUBLIC_BASE_URL`, copy the printed line:
    - `Temporary public URL: https://...trycloudflare.com`
    Links sent by bot will use this URL while workflow is running.
+8. Large files can take time. The bot sends progress updates while downloading.
 
 ### Important note
 
@@ -243,6 +244,7 @@ Copy `.env.example` to `.env` and set values.
 | `RATE_LIMIT_REQUESTS` | `8` | Requests allowed per window |
 | `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window seconds |
 | `MAX_FILE_SIZE_MB` | `2048` | Max accepted upload size |
+| `DOWNLOAD_TIMEOUT_SECONDS` | `3600` | Telegram download timeout per file |
 | `FFMPEG_ENABLED` | `true` | Enable HLS endpoints |
 | `PORT` | `8080` | HTTP server port |
 | `SERVER_HOST` | `0.0.0.0` | HTTP bind host |

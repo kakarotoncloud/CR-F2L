@@ -37,6 +37,7 @@ class Settings:
     rate_limit_requests: int
     rate_limit_window_seconds: int
     max_file_size_mb: int
+    download_timeout_seconds: int
     log_level: str
     ffmpeg_enabled: bool
 
@@ -83,6 +84,7 @@ class Settings:
             rate_limit_requests=_to_int(os.getenv("RATE_LIMIT_REQUESTS"), 8),
             rate_limit_window_seconds=_to_int(os.getenv("RATE_LIMIT_WINDOW_SECONDS"), 60),
             max_file_size_mb=_to_int(os.getenv("MAX_FILE_SIZE_MB"), 2048),
+            download_timeout_seconds=_to_int(os.getenv("DOWNLOAD_TIMEOUT_SECONDS"), 60 * 60),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             ffmpeg_enabled=_to_bool(os.getenv("FFMPEG_ENABLED"), True),
         )

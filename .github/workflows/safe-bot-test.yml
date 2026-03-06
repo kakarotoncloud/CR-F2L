@@ -62,6 +62,8 @@ jobs:
           DURATION=$INPUT_DURATION
           if [ "$DURATION" -lt 15 ]; then DURATION=15; fi
           if [ "$DURATION" -gt 180 ]; then DURATION=180; fi
+          DOWNLOAD_TIMEOUT=$((DURATION * 60 - 60))
+          if [ "$DOWNLOAD_TIMEOUT" -lt 900 ]; then DOWNLOAD_TIMEOUT=900; fi
 
           case "$INPUT_MAX_FILE_SIZE" in
             ''|*[!0-9]*)
@@ -75,6 +77,7 @@ jobs:
           if [ "$MAX_FILE_SIZE" -gt 2048 ]; then MAX_FILE_SIZE=2048; fi
 
           echo "SAFE_DURATION_MINUTES=$DURATION" >> "$GITHUB_ENV"
+          echo "SAFE_DOWNLOAD_TIMEOUT_SECONDS=$DOWNLOAD_TIMEOUT" >> "$GITHUB_ENV"
           echo "SAFE_MAX_FILE_SIZE_MB=$MAX_FILE_SIZE" >> "$GITHUB_ENV"
           echo "SAFE_PUBLIC_BASE_URL=$PUBLIC_BASE_URL" >> "$GITHUB_ENV"
 
@@ -123,6 +126,7 @@ jobs:
           LINK_SIGNING_SECRET: ${{ secrets.LINK_SIGNING_SECRET }}
           SAFE_PUBLIC_BASE_URL: ${{ env.SAFE_PUBLIC_BASE_URL }}
           SAFE_MAX_FILE_SIZE_MB: ${{ env.SAFE_MAX_FILE_SIZE_MB }}
+          SAFE_DOWNLOAD_TIMEOUT_SECONDS: ${{ env.SAFE_DOWNLOAD_TIMEOUT_SECONDS }}
         run: |
           {
             echo "BOT_TOKEN=$BOT_TOKEN"
@@ -137,6 +141,7 @@ jobs:
             echo "RATE_LIMIT_REQUESTS=8"
             echo "RATE_LIMIT_WINDOW_SECONDS=60"
             echo "MAX_FILE_SIZE_MB=$SAFE_MAX_FILE_SIZE_MB"
+            echo "DOWNLOAD_TIMEOUT_SECONDS=$SAFE_DOWNLOAD_TIMEOUT_SECONDS"
             echo "LOG_LEVEL=INFO"
             echo "FFMPEG_ENABLED=false"
             echo "DATABASE_PATH=data/bot.db"

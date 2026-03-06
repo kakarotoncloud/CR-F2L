@@ -44,6 +44,59 @@ def _resolve_path(path_value: str) -> Path:
     return (Path.cwd() / path).resolve()
 
 
+async def _download_with_progress(
+    client: Client,
+    message: Message,
+    status_message: Message,
+    destination: Path,
+    timeout_seconds: int,
+) -> str | None:
+    started_at = time.monotonic()
+    progress_state = {"last_update": 0.0}
+
+    async def progress(current: int, total: int, status_msg: Message, state: dict[str, float]) -> None:
+        now = time.monotonic()
+        if now - state["last_update"] < 5:
+            return
+        state["last_update"] = now
+        if total <= 0:
+            return
+
+        percent = (current / total) * 100
+        speed = max(int(current / max(now - started_at, 1.0)), 1)
+        text = (
+            "Downloading file from Telegram...\n"
+            f"{percent:.1f}% ({pretty_bytes(current)} / {pretty_bytes(total)})\n"
+            f"Speed: {pretty_bytes(speed)}/s"
+        )
+        try:
+            await status_msg.edit_text(text)
+        except Exception:  # noqa: BLE001
+            return
+
+    try:
+        return await asyncio.wait_for(
+            client.download_media(
+                message=message,
+                file_name=str(destination),
+                progress=progress,
+                progress_args=(status_message, progress_state),
+            ),
+            timeout=timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        minutes = max(timeout_seconds // 60, 1)
+        await status_message.edit_text(
+            f"Download timed out after {minutes} minute(s). "
+            "Try again or increase DOWNLOAD_TIMEOUT_SECONDS.",
+        )
+        return None
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Telegram media download failed", exc_info=exc)
+        await status_message.edit_text("Failed to download file from Telegram.")
+        return None
+
+
 class RateLimiter:
     """Simple in-memory sliding window rate limiter by user ID."""
 
@@ -314,9 +367,14 @@ def register_handlers(app: Client, settings: Settings, db: Database) -> None:
             if not local_path.exists():
                 status = await message.reply_text("Downloading file from Telegram...")
                 local_path.parent.mkdir(parents=True, exist_ok=True)
-                downloaded_path = await client.download_media(message=message, file_name=str(local_path))
+                downloaded_path = await _download_with_progress(
+                    client=client,
+                    message=message,
+                    status_message=status,
+                    destination=local_path,
+                    timeout_seconds=settings.download_timeout_seconds,
+                )
                 if not downloaded_path:
-                    await status.edit_text("Failed to download file from Telegram.")
                     return
                 actual_path = _resolve_path(downloaded_path)
                 if not actual_path.exists():
@@ -334,9 +392,14 @@ def register_handlers(app: Client, settings: Settings, db: Database) -> None:
             )
             status = await message.reply_text("Downloading file from Telegram...")
             local_path.parent.mkdir(parents=True, exist_ok=True)
-            downloaded_path = await client.download_media(message=message, file_name=str(local_path))
+            downloaded_path = await _download_with_progress(
+                client=client,
+                message=message,
+                status_message=status,
+                destination=local_path,
+                timeout_seconds=settings.download_timeout_seconds,
+            )
             if not downloaded_path:
-                await status.edit_text("Failed to download file from Telegram.")
                 return
             actual_path = _resolve_path(downloaded_path)
             if not actual_path.exists():
