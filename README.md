@@ -1,57 +1,323 @@
 # Telegram File Link Bot
 
-Turn files sent to your Telegram bot into:
+Production-ready Telegram bot that converts uploaded files into secure, expiring:
 
 - Direct download links
 - Streaming links
-- A browser player page (video/audio)
+- Browser player links (video/audio)
 
-This guide is written for both technical and non-technical users.
-
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Async-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Pyrogram](https://img.shields.io/badge/Telegram-Pyrogram-2CA5E0?logo=telegram&logoColor=white)](https://docs.pyrogram.org/)
+[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Deploy](https://img.shields.io/badge/Deploy-Heroku%20%7C%20VPS%20%7C%20Colab-6f42c1)](#deployment-guides)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb)
 
 ---
 
-## 1) What this project does
+## Table of contents
+
+- [What this bot does](#what-this-bot-does)
+- [Features](#features)
+- [Quick start options](#quick-start-options)
+- [One-click Google Colab (easiest)](#one-click-google-colab-easiest)
+- [Local run](#local-run)
+- [Bot commands](#bot-commands)
+- [Environment variables](#environment-variables)
+- [Deployment guides](#deployment-guides)
+  - [Heroku](#heroku)
+  - [VPS Ubuntu](#vps-ubuntu)
+  - [Google Colab](#google-colab)
+- [How links work](#how-links-work)
+- [Troubleshooting](#troubleshooting)
+- [Security checklist](#security-checklist)
+- [Project structure](#project-structure)
+
+---
+
+## What this bot does
 
 When a user sends a file to your bot:
 
-1. Bot receives the file on Telegram.
-2. Bot stores and indexes it in SQLite.
-3. Bot generates a secure expiring token.
-4. Bot sends back:
-   - Download link
-   - Stream/player link
+1. Bot receives the file in Telegram.
+2. Bot saves and indexes it in SQLite.
+3. Bot generates a signed expiring token.
+4. Bot sends links back:
+   - Download URL
+   - Stream URL
+   - Player page URL
 
-Supported file types:
+Supported Telegram media:
 
-- Documents
-- Videos
+- Document
+- Video
 - Audio
-- Photos
-- Voice notes
-- Animations
+- Photo
+- Voice
+- Animation
 
 ---
 
-## 2) Main features
+## Features
 
-- Async stack (Pyrogram + FastAPI + aiosqlite)
-- Signed expiring links
+- Fully async architecture (Pyrogram + FastAPI + aiosqlite)
+- Signed token links with expiration
 - Byte-range streaming support
-- Optional HLS output with FFmpeg
-- Admin commands:
+- Optional HLS generation with FFmpeg
+- File deduplication by Telegram unique file ID
+- Admin features:
   - `/stats`
   - `/users`
   - `/broadcast <message>`
-- User command:
+- User expiry control:
   - `/expire <minutes|default>`
-- Basic rate limiting
-- Logging
+- Basic anti-spam rate limiting
+- Structured logging for production
 
 ---
 
-## 3) Project structure
+## Quick start options
+
+Choose the path that matches your experience:
+
+| You are... | Best option | Time |
+|---|---|---|
+| Non-technical / beginner | Google Colab | 5-10 min |
+| Want simple cloud deployment | Heroku | 10-20 min |
+| Want full control + domain + nginx | VPS Ubuntu | 20-40 min |
+
+---
+
+## One-click Google Colab (easiest)
+
+Click:
+
+- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb
+
+Then:
+
+1. Run cells top-to-bottom.
+2. Enter `BOT_TOKEN`, `API_ID`, `API_HASH`.
+3. (Optional) Enter public URL and port.
+4. Notebook installs dependencies, writes `.env`, starts bot.
+5. You get running status + URL.
+
+Note: For public links in Colab, use a tunnel (Cloudflare Tunnel / ngrok) and set that as `PUBLIC_BASE_URL`.
+
+---
+
+## Local run
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# edit .env
+python -m bot.main
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+Expected:
+
+```json
+{"status":"ok"}
+```
+
+---
+
+## Bot commands
+
+### User commands
+
+| Command | Description |
+|---|---|
+| `/start` | Welcome message and usage |
+| `/help` | Show all commands |
+| `/expire <minutes>` | Set personal link expiry |
+| `/expire default` | Reset to default expiry |
+
+### Admin commands
+
+| Command | Description |
+|---|---|
+| `/stats` | Show users/files/links/storage stats |
+| `/users` | Show recent users |
+| `/broadcast <message>` | Send message to all users |
+
+---
+
+## Environment variables
+
+Copy `.env.example` to `.env` and set values.
+
+### Required
+
+| Variable | Example | Purpose |
+|---|---|---|
+| `BOT_TOKEN` | `123456:ABC...` | Bot token from BotFather |
+| `API_ID` | `123456` | Telegram API ID |
+| `API_HASH` | `xxxxxxxx` | Telegram API hash |
+| `PUBLIC_BASE_URL` | `https://files.example.com` | URL used in generated links |
+
+### Common optional
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ADMIN_IDS` | empty | Comma-separated Telegram numeric user IDs |
+| `LINK_SIGNING_SECRET` | derived fallback | Secret for secure token signing |
+| `LINK_EXPIRY_SECONDS` | `86400` | Default link expiration (24h) |
+| `RATE_LIMIT_REQUESTS` | `8` | Requests allowed per window |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window seconds |
+| `MAX_FILE_SIZE_MB` | `2048` | Max accepted upload size |
+| `FFMPEG_ENABLED` | `true` | Enable HLS endpoints |
+| `PORT` | `8080` | HTTP server port |
+| `SERVER_HOST` | `0.0.0.0` | HTTP bind host |
+
+---
+
+## Deployment guides
+
+## Heroku
+
+Already included:
+
+- `Procfile`
+- `runtime.txt`
+- `requirements.txt`
+
+Steps:
+
+1. Create Heroku app.
+2. Connect your GitHub repository.
+3. Deploy your branch.
+4. Add Config Vars in Heroku settings:
+   - `BOT_TOKEN`
+   - `API_ID`
+   - `API_HASH`
+   - `PUBLIC_BASE_URL`
+   - `LINK_SIGNING_SECRET`
+5. Open `/health` endpoint to verify.
+
+Important: Heroku file system is ephemeral. For large/long-term storage, use external storage.
+
+---
+
+## VPS Ubuntu
+
+### 1) Install packages
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip ffmpeg nginx git
+```
+
+### 2) Setup project
+
+```bash
+sudo mkdir -p /opt/telegram-file-link-bot
+sudo chown -R $USER:$USER /opt/telegram-file-link-bot
+cd /opt/telegram-file-link-bot
+git clone <YOUR_REPO_URL> .
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# edit .env
+```
+
+### 3) Setup systemd service
+
+```bash
+sudo cp deploy/telegram-file-link-bot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable telegram-file-link-bot
+sudo systemctl start telegram-file-link-bot
+sudo systemctl status telegram-file-link-bot
+```
+
+### 4) Setup nginx reverse proxy
+
+```bash
+sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/telegram-file-link-bot
+sudo ln -s /etc/nginx/sites-available/telegram-file-link-bot /etc/nginx/sites-enabled/telegram-file-link-bot
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Then add TLS using Certbot (recommended).
+
+---
+
+## Google Colab
+
+Use `colab_setup.ipynb`:
+
+1. Prompts for required credentials.
+2. Clones project and installs dependencies.
+3. Creates `.env`.
+4. Starts bot + API.
+5. Prints status and URL.
+
+Direct link:
+
+- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb
+
+---
+
+## How links work
+
+- Download: `/d/<token>`
+- Stream: `/s/<token>`
+- Player: `/player/<token>`
+- HLS playlist (optional): `/hls/<token>/index.m3u8`
+
+Tokens are signed and auto-expire.
+
+---
+
+## Troubleshooting
+
+### Bot does not start
+
+- Verify `BOT_TOKEN`, `API_ID`, `API_HASH`
+- Ensure Python 3.11+ is installed
+- Reinstall dependencies: `pip install -r requirements.txt`
+
+### Links not opening publicly
+
+- Check `PUBLIC_BASE_URL`
+- Check domain DNS
+- Check nginx/reverse proxy
+
+### Streaming problems
+
+- Verify FFmpeg: `ffmpeg -version`
+- Ensure `FFMPEG_ENABLED=true`
+- Try HLS link in player page
+
+### Admin commands denied
+
+- Confirm your numeric Telegram user ID is in `ADMIN_IDS`
+
+---
+
+## Security checklist
+
+- Use strong random `LINK_SIGNING_SECRET`
+- Use HTTPS in production
+- Restrict `ADMIN_IDS`
+- Set safe `MAX_FILE_SIZE_MB`
+- Consider external storage for serious scale
+
+---
+
+## Project structure
 
 ```text
 telegram-file-link-bot/
@@ -89,248 +355,7 @@ telegram-file-link-bot/
 
 ---
 
-## 4) Before you start (important)
-
-You need these 3 values from Telegram:
-
-1. `BOT_TOKEN` (from BotFather)
-2. `API_ID` (from my.telegram.org)
-3. `API_HASH` (from my.telegram.org)
-
-If you do not have them yet:
-
-- Open Telegram and chat with **@BotFather**
-- Create bot: `/newbot`
-- Save the token
-- Go to https://my.telegram.org -> API development tools
-- Create app and copy API ID and API HASH
-
----
-
-## 5) Environment variables (simple explanation)
-
-Copy `.env.example` to `.env` and edit values.
-
-Required:
-
-- `BOT_TOKEN` -> your bot token
-- `API_ID` -> your telegram API ID
-- `API_HASH` -> your telegram API hash
-- `PUBLIC_BASE_URL` -> public URL users will open (example: `https://files.example.com`)
-
-Important optional:
-
-- `ADMIN_IDS` -> your Telegram numeric user ID(s), comma-separated
-- `LINK_SIGNING_SECRET` -> long random secret string
-- `LINK_EXPIRY_SECONDS` -> default link expiry (86400 = 24h)
-- `MAX_FILE_SIZE_MB` -> upload size limit
-
----
-
-## 6) Fastest path for beginners: Google Colab
-
-If you are non-technical, start here.
-
-### One-click open
-
-Click this direct link:
-
-- https://colab.research.google.com/github/kakarotoncloud/CR-F2L/blob/cursor/telegram-file-link-bot-99e0/colab_setup.ipynb
-
-### Steps
-
-1. Click the **Open in Colab** button above.
-2. Run cells from top to bottom.
-3. Enter:
-   - BOT TOKEN
-   - API ID
-   - API HASH
-   - Public URL (optional)
-   - Port
-4. Notebook installs dependencies.
-5. Notebook starts bot + API.
-6. Notebook prints running status and URL.
-
-### Note
-
-If you want public links from Colab, use a tunnel (Cloudflare Tunnel or ngrok), then set that URL as `PUBLIC_BASE_URL`.
-
----
-
-## 7) Local run (developer mode)
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# edit .env with your values
-python -m bot.main
-```
-
-Health check:
-
-```bash
-curl http://127.0.0.1:8080/health
-```
-
-Expected:
-
-```json
-{"status":"ok"}
-```
-
----
-
-## 8) Bot commands
-
-### User commands
-
-- `/start` -> intro
-- `/help` -> help menu
-- `/expire <minutes>` -> custom expiry for your links
-- `/expire default` -> return to default expiry
-
-### Admin commands
-
-- `/stats` -> total users/files/links/storage
-- `/users` -> recent users list
-- `/broadcast <message>` -> send message to all known users
-
----
-
-## 9) Deploy to Heroku
-
-This repo already includes:
-
-- `Procfile`
-- `runtime.txt`
-- `requirements.txt`
-
-### Step-by-step
-
-1. Create a Heroku app.
-2. Connect your GitHub repo.
-3. Deploy branch.
-4. In Heroku app settings -> Config Vars, add:
-   - `BOT_TOKEN`
-   - `API_ID`
-   - `API_HASH`
-   - `PUBLIC_BASE_URL` (example: `https://your-app.herokuapp.com`)
-   - `LINK_SIGNING_SECRET`
-   - Optional other vars from `.env.example`
-5. Open: `https://your-app.herokuapp.com/health`
-
-### Heroku warning
-
-Heroku disk is ephemeral. Files may not persist after restart.  
-For serious production usage, use external storage.
-
----
-
-## 10) Deploy to VPS (Ubuntu)
-
-### A) Install system packages
-
-```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip ffmpeg nginx git
-```
-
-### B) Clone and setup app
-
-```bash
-sudo mkdir -p /opt/telegram-file-link-bot
-sudo chown -R $USER:$USER /opt/telegram-file-link-bot
-cd /opt/telegram-file-link-bot
-git clone <YOUR_REPO_URL> .
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# edit .env
-```
-
-### C) Run as background service (systemd)
-
-```bash
-sudo cp deploy/telegram-file-link-bot.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable telegram-file-link-bot
-sudo systemctl start telegram-file-link-bot
-sudo systemctl status telegram-file-link-bot
-```
-
-### D) Nginx reverse proxy
-
-```bash
-sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/telegram-file-link-bot
-sudo ln -s /etc/nginx/sites-available/telegram-file-link-bot /etc/nginx/sites-enabled/telegram-file-link-bot
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Then add SSL certificate (recommended) using Certbot.
-
----
-
-## 11) How links work
-
-- Download: `/d/<token>`
-- Stream: `/s/<token>`
-- Player page: `/player/<token>`
-- HLS playlist (optional): `/hls/<token>/index.m3u8`
-
-Tokens are signed and expire automatically.
-
----
-
-## 12) Troubleshooting (for everyone)
-
-### Bot does not start
-
-Check:
-
-- `BOT_TOKEN`, `API_ID`, `API_HASH` are correct
-- Python version is 3.11+
-- Dependencies installed with `pip install -r requirements.txt`
-
-### Links are generated but not opening publicly
-
-Check:
-
-- `PUBLIC_BASE_URL` is correct and publicly reachable
-- Domain/DNS points to your server
-- Nginx reverse proxy is configured
-
-### Streaming does not work for some files
-
-Check:
-
-- FFmpeg is installed (`ffmpeg -version`)
-- `FFMPEG_ENABLED=true`
-- Browser format compatibility (try HLS link)
-
-### Admin commands not working
-
-Check:
-
-- Your Telegram numeric ID exists in `ADMIN_IDS`
-- IDs are comma-separated without spaces issues
-
----
-
-## 13) Security and production advice
-
-- Use a strong random `LINK_SIGNING_SECRET`
-- Use HTTPS in production
-- Limit `ADMIN_IDS` to trusted users only
-- Set reasonable `MAX_FILE_SIZE_MB`
-- For large scale, move from local disk to object storage
-
----
-
-## 14) Screenshot placeholders
+## Screenshots placeholders
 
 - `docs/screenshots/01-upload-response.png`
 - `docs/screenshots/02-player-page.png`
@@ -338,19 +363,6 @@ Check:
 
 ---
 
-## 15) Quick checklist before going live
+## License
 
-- [ ] Bot token/API ID/API HASH set
-- [ ] Public base URL correct
-- [ ] Admin IDs added
-- [ ] Health endpoint responds
-- [ ] Upload test works
-- [ ] Download link works
-- [ ] Streaming page works
-- [ ] Expiry behavior verified
-
----
-
-## 16) License
-
-Use MIT or your preferred license.
+Use MIT (or your preferred license).
